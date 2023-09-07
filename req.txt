@@ -1,0 +1,17 @@
+gspread
+wheel
+cffi
+fastapi==0.74.1
+pydantic
+pydantic[email]
+uvicorn==0.17.5
+passlib==1.7.4
+python-dotenv==0.21.0
+pymysql==1.0.2
+requests
+urllib3==1.26.6 
+pytz
+bcrypt
+pillow
+firebase_admin
+google.cloud
