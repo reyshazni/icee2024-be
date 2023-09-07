@@ -31,7 +31,7 @@ jobs:
         env:
           SAJSON: ${{ secrets.SAJSON }}
         with:
-          input: ./sa.json.example
+          input: ./sa.json.template
           output: ./sa.json
 
       - name: Setup GCP
