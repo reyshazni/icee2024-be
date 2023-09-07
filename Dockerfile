@@ -11,7 +11,7 @@ COPY . /app
 RUN python -m pip install --upgrade pip
 
 # Menginstall semua requirement yang dibutuhkan
-RUN pip install -r requirements.txt
+RUN pip install -r req.txt
 
 # Membuka port 8000 agar dapat diakses dari luar container
 EXPOSE 8000
