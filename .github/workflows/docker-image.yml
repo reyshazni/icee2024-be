@@ -1,0 +1,70 @@
+name: "Docker push to GCR and deploy to Cloud Run"
+
+on:
+  push:
+    branches:
+      - staging
+      - master
+  pull_request:
+    branches:
+      - master
+    types: [closed]
+
+jobs:
+  build-and-deploy:
+    name: Build and Deploy Docker Image to Cloud Run
+    if: github.event.pull_request.merged == false
+    runs-on: ubuntu-latest
+
+    env:
+      IMAGE_NAME: gcr.io/${{ secrets.GCP_PROJECT_ID }}
+      GCR_TAG: ${{ github.run_id }}
+      SERVICE_NAME: ${{ github.ref == 'refs/heads/master' && 'be-production' || 'be-staging' }}
+      REGION: asia-southeast2
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Setup ServiceAccount
+        uses: nowactions/envsubst@v1
+        env:
+          SAJSON: ${{ secrets.SAJSON }}
+        with:
+          input: ./sa.json.example
+          output: ./sa.json
+
+      - name: Setup GCP
+        uses: google-github-actions/setup-gcloud@v0
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.SAJSON }}
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker --quiet
+
+      - name: Build and Push Docker image
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/master" ]; then
+            docker build . -t $IMAGE_NAME/be-production:${GCR_TAG}
+            docker push $IMAGE_NAME/be-production:${GCR_TAG}
+          elif [ "${{ github.ref }}" = "refs/heads/staging" ]; then
+            docker build . -t $IMAGE_NAME/be-staging:${GCR_TAG}
+            docker push $IMAGE_NAME/be-staging:${GCR_TAG}
+          fi
+
+      - name: Auth GCP
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.SAJSON }}
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image gcr.io/${{ secrets.GCP_PROJECT_ID }}/be-${{ github.ref == 'refs/heads/master' && 'production' || 'staging' }}:${GCR_TAG} \
+            --platform managed \
+            --region ${{ env.REGION }} \
+            --allow-unauthenticated \
+            --min-instances=${{ github.ref == 'refs/heads/master' && '0' || '0' }} \
+            --max-instances=${{ github.ref == 'refs/heads/master' && '1' || '1' }} \
+            --port 8000
