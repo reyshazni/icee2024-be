@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 import os
 from utils import connect, open_worksheet, append_data
 from fastapi.routing import APIRouter
+from models.events import WebinarRegistrationRequest
 
 # Create the FastAPI app
 app = FastAPI()
@@ -54,7 +55,7 @@ async def upload_file(file: UploadFile):
         return {"message": f"Terjadi kesalahan: {str(e)}"}
 
 @event_router.post("/uploadData")
-async def upload_data(request: dict):
+async def upload_data(request: WebinarRegistrationRequest):
     try:
         credentials_file = "sa.json"
         spreadsheet = connect(credentials_file)
