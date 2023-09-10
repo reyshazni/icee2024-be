@@ -46,6 +46,7 @@ async def upload_file(file: UploadFile):
         blob.upload_from_file(file.file)
 
         file_url = f"https://storage.googleapis.com/{firebase_storage.name}/{blob.name}"
+        print("fileurl")
 
         return {"message": "success", "file_url": file_url}
 
@@ -58,6 +59,8 @@ async def upload_file(file: UploadFile):
 async def upload_data(request: WebinarRegistrationRequest):
     try:
         credentials_file = "sa.json"
+
+        print("connecting spreadsheet")
         spreadsheet = connect(credentials_file)
 
         worksheet = open_worksheet(spreadsheet, "[Testing] Registrant", request.webinar_name)
@@ -77,8 +80,11 @@ async def upload_data(request: WebinarRegistrationRequest):
             request.institution,
             request.profession,
             request.address,
-            request.url_bukti_pembayaran
+            request.url_bukti_pembayaran,
+            request.url_bukti_follow
         ]
+
+        print(data_to_append)
 
         append_data(worksheet, data_to_append)
 
@@ -93,10 +99,13 @@ async def upload_data(request: WebinarRegistrationRequest):
                 "institution": request.institution,
                 "profession": request.profession,
                 "address": request.address,
-                "url_bukti_pembayaran": request.url_bukti_pembayaran
+                "url_bukti_pembayaran": request.url_bukti_pembayaran,
+                "url_bukti_follow": request.url_bukti_follow
             },
             "row_inserted": worksheet.row_count
         }
+
+        print(response_data)
 
         return response_data
 

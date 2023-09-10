@@ -9,4 +9,5 @@ class WebinarRegistrationRequest(BaseModel):
     institution: str = Field(..., example="Institut Teknologi Bandung")
     profession: str = Field(..., example="Mahasiswa")
     address: str = Field(..., example="Jalan Gatot Subroto 1A, Jakarta")
-    url_bukti_pembayaran: str = Field(..., example="https://foto.jpg/")
+    url_bukti_pembayaran: str = Field(..., example="https://buktibayarjpg.jpg/")
+    url_bukti_follow: str = Field(..., example="https://buktifollow.jpg/")
