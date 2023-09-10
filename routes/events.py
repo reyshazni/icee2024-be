@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, UploadFile
 from firebase_admin import credentials, initialize_app, storage
 from google.cloud import firestore
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import os
 from utils import connect, open_worksheet, append_data
 from fastapi.routing import APIRouter
@@ -14,7 +14,7 @@ app = FastAPI()
 event_router = APIRouter(tags=["Event"])
 
 CREDENTIAL_PATH = "sa.json"
-BUCKET_NAME = "icee-2023.appspot.com"
+BUCKET_NAME = "icee24"
 
 cred = credentials.Certificate(CREDENTIAL_PATH)
 initialize_app(cred)
@@ -60,27 +60,45 @@ async def upload_data(request: WebinarRegistrationRequest):
         credentials_file = "sa.json"
         spreadsheet = connect(credentials_file)
 
-        worksheet = open_worksheet(spreadsheet, "[Testing] Registrant", request["webinar_id"])
+        worksheet = open_worksheet(spreadsheet, "[Testing] Registrant", request.webinar_name)
 
-        jakarta_timezone = timezone("Asia/Jakarta")
+        # Definisikan zona waktu Asia/Jakarta
+        jakarta_timezone = timezone(timedelta(hours=7))  # UTC+7 untuk Asia/Jakarta
+
+        # Dapatkan waktu saat ini dalam zona waktu Asia/Jakarta
         current_datetime_wib = datetime.now(jakarta_timezone)
         formatted_datetime = current_datetime_wib.strftime("%m/%d/%Y %H:%M:%S")
 
         data_to_append = [
             formatted_datetime,
-            request["webinar_name"],  # Mengganti dengan "webinar_name" sesuai model
-            request["full_name"],
-            request["email"],
-            request["phone_number"],
-            request["institution"],  # Mengganti dengan "institution" sesuai model
-            request["profession"],   # Mengganti dengan "profession" sesuai model
-            request["address"],      # Mengganti dengan "address" sesuai model
-            request["url_bukti_pembayaran"]
+            request.full_name,
+            request.email,
+            request.phone_number,
+            request.institution,
+            request.profession,
+            request.address,
+            request.url_bukti_pembayaran
         ]
 
         append_data(worksheet, data_to_append)
 
-        return {"message": "success"}
+        # Persiapan respons
+        response_data = {
+            "message": "success",
+            "data": {
+                "formatted_datetime": formatted_datetime,
+                "full_name": request.full_name,
+                "email": request.email,
+                "phone_number": request.phone_number,
+                "institution": request.institution,
+                "profession": request.profession,
+                "address": request.address,
+                "url_bukti_pembayaran": request.url_bukti_pembayaran
+            },
+            "row_inserted": worksheet.row_count
+        }
+
+        return response_data
 
     except Exception as e:
         return {"message": str(e)}
