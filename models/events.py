@@ -1,5 +1,6 @@
 from typing import List
 from pydantic import BaseModel, EmailStr, Field
+from enum import Enum
 
 class WebinarRegistrationRequest(BaseModel):
     webinar_name: str = Field(..., example="event1")
@@ -11,3 +12,7 @@ class WebinarRegistrationRequest(BaseModel):
     address: str = Field(..., example="Jalan Gatot Subroto 1A, Jakarta")
     url_bukti_pembayaran: str = Field(..., example="https://buktibayarjpg.jpg/")
     url_bukti_follow: str = Field(..., example="https://buktifollow.jpg/")
+
+class FileTypeEnum(str, Enum):
+    bukti_pembayaran = "bukti_pembayaran"
+    bukti_follow = "bukti_follow"

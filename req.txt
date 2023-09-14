@@ -2,7 +2,7 @@ gspread
 wheel
 cffi
 fastapi==0.74.1
-pydantic
+pydantic[enum]
 pydantic[email]
 uvicorn==0.17.5
 passlib==1.7.4
@@ -16,3 +16,4 @@ pillow
 firebase_admin
 google.cloud
 python-multipart
+typing
