@@ -37,10 +37,13 @@ jobs:
       - name: Setup env
         uses: nowactions/envsubst@v1
         env:
-          ENV: ${{ github.ref != 'refs/heads/master' && secrets.ENV_PROD || secrets.ENV_STG }}
+          ENV: ${{ github.ref == 'refs/heads/master' && secrets.ENV_PROD || secrets.ENV_STG }}
         with:
           input: ./.env.template
           output: ./.env
+
+      - name: Print .env file
+        run: cat .env
 
       - name: Setup GCP
         uses: google-github-actions/setup-gcloud@v0
