@@ -34,6 +34,14 @@ jobs:
           input: ./sa.json.template
           output: ./sa.json
 
+      - name: Setup env
+        uses: nowactions/envsubst@v1
+        env:
+          env: ${{ secrets.SAJSON }}
+        with:
+          input: ./.env.template
+          output: ./.env
+
       - name: Setup GCP
         uses: google-github-actions/setup-gcloud@v0
         with:

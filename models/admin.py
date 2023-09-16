@@ -7,3 +7,7 @@ class CategoryEnum(str, Enum):
     m = "m"
     l = "l"
     xl = "xl"
+
+class ClassEnum(str, Enum):
+    sponsor = "sponsor"
+    media_partner = "media_partner"

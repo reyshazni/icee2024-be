@@ -5,9 +5,20 @@ from datetime import datetime, timedelta, timezone
 import os
 from utils import connect, open_worksheet, append_data
 from fastapi.routing import APIRouter
-from models.events import WebinarRegistrationRequest, FileTypeEnum
-from models.admin import CategoryEnum
+from models.events import WorkshopRegistrationRequest, NonWorkshopRegistrationRequest, FileTypeEnum
+from models.admin import CategoryEnum, ClassEnum
 from typing import Annotated
+from dotenv import load_dotenv, dotenv_values
+
+load_dotenv()
+config = dotenv_values(".env")
+spreadsheet_name = config["SPREADSHEET_NAME"]
+access_code1 = config["ACCESS_CODE1"]
+access_code2 = config["ACCESS_CODE2"]
+access_code3 = config["ACCESS_CODE3"]
+
+# Create a list of access codes
+allowed_access_codes = [access_code1, access_code2, access_code3]
 
 # Create the FastAPI app
 app = FastAPI()
@@ -66,15 +77,15 @@ async def upload_file(file: UploadFile, type: FileTypeEnum):
     except Exception as e:
         return {"message": f"Terjadi kesalahan: {str(e)}"}
 
-@event_router.post("/uploadData")
-async def upload_data(request: WebinarRegistrationRequest):
+@event_router.post("/registerWorkshop")
+async def upload_data(request: WorkshopRegistrationRequest):
     try:
         credentials_file = "sa.json"
 
         print("connecting spreadsheet")
         spreadsheet = connect(credentials_file)
 
-        worksheet = open_worksheet(spreadsheet, "[Testing] Registrant", request.webinar_name)
+        worksheet = open_worksheet(spreadsheet, spreadsheet_name, request.event_name)
 
         # Definisikan zona waktu Asia/Jakarta
         jakarta_timezone = timezone(timedelta(hours=7))  # UTC+7 untuk Asia/Jakarta
@@ -91,7 +102,6 @@ async def upload_data(request: WebinarRegistrationRequest):
             request.institution,
             request.profession,
             request.address,
-            request.url_bukti_pembayaran,
             request.url_bukti_follow
         ]
 
@@ -110,8 +120,62 @@ async def upload_data(request: WebinarRegistrationRequest):
                 "institution": request.institution,
                 "profession": request.profession,
                 "address": request.address,
-                "url_bukti_pembayaran": request.url_bukti_pembayaran,
                 "url_bukti_follow": request.url_bukti_follow
+            },
+            "row_inserted": worksheet.row_count
+        }
+
+        print(response_data)
+
+        return response_data
+
+    except Exception as e:
+        return {"message": str(e)}
+
+@event_router.post("/registerNonWorkshop")
+async def upload_data(request: NonWorkshopRegistrationRequest):
+    try:
+        credentials_file = "sa.json"
+
+        print("connecting spreadsheet")
+        spreadsheet = connect(credentials_file)
+
+        worksheet = open_worksheet(spreadsheet, spreadsheet_name, request.event_name)
+
+        # Definisikan zona waktu Asia/Jakarta
+        jakarta_timezone = timezone(timedelta(hours=7))  # UTC+7 untuk Asia/Jakarta
+
+        # Dapatkan waktu saat ini dalam zona waktu Asia/Jakarta
+        current_datetime_wib = datetime.now(jakarta_timezone)
+        formatted_datetime = current_datetime_wib.strftime("%m/%d/%Y %H:%M:%S")
+
+        data_to_append = [
+            formatted_datetime,
+            request.full_name,
+            request.email,
+            request.phone_number,
+            request.institution,
+            request.profession,
+            request.address,
+            request.url_bukti_pembayaran
+        ]
+
+        print(data_to_append)
+
+        append_data(worksheet, data_to_append)
+
+        # Persiapan respons
+        response_data = {
+            "message": "success",
+            "data": {
+                "formatted_datetime": formatted_datetime,
+                "full_name": request.full_name,
+                "email": request.email,
+                "phone_number": request.phone_number,
+                "institution": request.institution,
+                "profession": request.profession,
+                "address": request.address,
+                "url_bukti_pembayarabn": request.url_bukti_pembayaran
             },
             "row_inserted": worksheet.row_count
         }
@@ -125,16 +189,14 @@ async def upload_data(request: WebinarRegistrationRequest):
 
 ## ADMIN ROUTER
 
-allowed_access_codes = ["p", "kqfubd7vbq31fh24"]
-
 content_types = {
     'jpeg': 'image/jpeg',
     'jpg': 'image/jpeg',
     'png': 'image/png',
 }
 
-@admin_router.post("/uploadSponsor")
-async def upload_sponsor(access_code: str, category: CategoryEnum, file: UploadFile, nama_sponsor: str):
+@admin_router.post("/uploadSupporter")
+async def upload_sponsor(access_code: str, kelas: ClassEnum, category: CategoryEnum, file: UploadFile, nama_sponsor: str):
     allowed_formats = {'jpeg', 'jpg', 'png'}
     max_file_size = 20 * 1024 * 1024
 
@@ -157,7 +219,7 @@ async def upload_sponsor(access_code: str, category: CategoryEnum, file: UploadF
         # Modify the filename by appending the file format and replacing spaces with underscores
         new_filename = f"{nama_sponsor.replace(' ', '_')}.{file_format}"
 
-        destination_path = f"sponsorship/{category}/{new_filename}"
+        destination_path = f"{kelas}/{category}/{new_filename}"
 
         blob = firebase_storage.blob(destination_path)
         
