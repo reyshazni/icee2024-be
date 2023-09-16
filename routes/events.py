@@ -24,7 +24,7 @@ allowed_access_codes = [access_code1, access_code2, access_code3]
 app = FastAPI()
 
 # Create the event_router
-event_router = APIRouter(tags=["Event"])
+event_router = APIRouter(tags=["Registration"])
 admin_router = APIRouter(tags=["Admin"])
 
 CREDENTIAL_PATH = "sa.json"
@@ -37,7 +37,7 @@ os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = CREDENTIAL_PATH
 firebase_storage = storage.bucket(name=BUCKET_NAME)
 db = firestore.Client()
 
-@event_router.post("/uploadFile")
+@event_router.post("/upload-file")
 async def upload_file(file: UploadFile, type: FileTypeEnum):
     allowed_formats = {'pdf': 'application/pdf', 'jpeg': 'image/jpeg', 'jpg': 'image/jpeg', 'png': 'image/png'}
     max_file_size = 5 * 1024 * 1024  # 5 MB
@@ -77,7 +77,7 @@ async def upload_file(file: UploadFile, type: FileTypeEnum):
     except Exception as e:
         return {"message": f"Terjadi kesalahan: {str(e)}"}
 
-@event_router.post("/registerWorkshop")
+@event_router.post("/workshop")
 async def upload_data(request: WorkshopRegistrationRequest):
     try:
         credentials_file = "sa.json"
@@ -132,7 +132,7 @@ async def upload_data(request: WorkshopRegistrationRequest):
     except Exception as e:
         return {"message": str(e)}
 
-@event_router.post("/registerNonWorkshop")
+@event_router.post("/conference")
 async def upload_data(request: NonWorkshopRegistrationRequest):
     try:
         credentials_file = "sa.json"
@@ -140,7 +140,7 @@ async def upload_data(request: NonWorkshopRegistrationRequest):
         print("connecting spreadsheet")
         spreadsheet = connect(credentials_file)
 
-        worksheet = open_worksheet(spreadsheet, spreadsheet_name, request.event_name)
+        worksheet = open_worksheet(spreadsheet, spreadsheet_name, "workshop")
 
         # Definisikan zona waktu Asia/Jakarta
         jakarta_timezone = timezone(timedelta(hours=7))  # UTC+7 untuk Asia/Jakarta
@@ -187,15 +187,17 @@ async def upload_data(request: NonWorkshopRegistrationRequest):
     except Exception as e:
         return {"message": str(e)}
 
-## ADMIN ROUTER
 
+
+
+## ADMIN ROUTER
 content_types = {
     'jpeg': 'image/jpeg',
     'jpg': 'image/jpeg',
     'png': 'image/png',
 }
 
-@admin_router.post("/uploadSupporter")
+@admin_router.post("/upload-partners")
 async def upload_sponsor(access_code: str, kelas: ClassEnum, category: CategoryEnum, file: UploadFile, nama_sponsor: str):
     allowed_formats = {'jpeg', 'jpg', 'png'}
     max_file_size = 20 * 1024 * 1024
