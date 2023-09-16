@@ -42,6 +42,9 @@ jobs:
           input: ./.env.template
           output: ./.env
 
+      - name: Print .env file
+        run: cat .env
+
       - name: Setup GCP
         uses: google-github-actions/setup-gcloud@v0
         with:
