@@ -37,7 +37,7 @@ jobs:
       - name: Setup env
         uses: nowactions/envsubst@v1
         env:
-          ENV: ${{ github.ref != 'refs/heads/master' && secrets.ENV_PROD || secrets.ENV_STG }}
+          ENV: ${{ github.ref != 'refs/heads/master' ? secrets.ENV_PROD : secrets.ENV_STG }}
         with:
           input: ./.env.template
           output: ./.env
