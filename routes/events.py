@@ -1,5 +1,6 @@
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, UploadFile, Form
+from fastapi.responses import JSONResponse
 import firebase_admin
 from firebase_admin import credentials, initialize_app, storage
 from google.cloud import firestore
@@ -72,22 +73,34 @@ async def upload_file(file: UploadFile, type: FileTypeEnum):
         file_url = f"https://storage.googleapis.com/{firebase_storage.name}/{destination_path}"
         print("fileurl")
 
-        return {"message": "success", "file_url": file_url}
+        # Create a response dictionary in the specified format
+        response_data = {"status_code": 200, "status": "success", "data": {"file_url": file_url}}
+        
+        # Return a JSONResponse with the custom response data and status code
+        return JSONResponse(content=response_data, status_code=200)
 
     except HTTPException as http_exception:
-        return {"message": http_exception.detail}
+        # Create a response dictionary for error cases
+        response_data = {"status_code": http_exception.status_code, "status": "failed", "message": http_exception.detail}
+        
+        # Return a JSONResponse with the custom error response data and status code
+        return JSONResponse(content=response_data, status_code=http_exception.status_code)
     except Exception as e:
-        return {"message": f"Terjadi kesalahan: {str(e)}"}
+        # Create a response dictionary for general exceptions
+        response_data = {"status_code": 500, "status": "failed", "message": f"Terjadi kesalahan: {str(e)}"}
+        
+        # Return a JSONResponse with the custom error response data and status code
+        return JSONResponse(content=response_data, status_code=500)
 
 @event_router.post("/workshop")
-async def upload_data(request: WorkshopRegistrationRequest):
+async def upload_data_workshop(request: WorkshopRegistrationRequest):
     try:
         credentials_file = "sa.json"
 
         print("connecting spreadsheet")
         spreadsheet = connect(credentials_file)
 
-        worksheet = open_worksheet(spreadsheet, spreadsheet_name, request.event_name)
+        worksheet = open_worksheet(spreadsheet, spreadsheet_name, "workshop")
 
         # Definisikan zona waktu Asia/Jakarta
         jakarta_timezone = timezone(timedelta(hours=7))  # UTC+7 untuk Asia/Jakarta
@@ -111,9 +124,10 @@ async def upload_data(request: WorkshopRegistrationRequest):
 
         append_data(worksheet, data_to_append)
 
-        # Persiapan respons
+        # Prepare the response data
         response_data = {
-            "message": "success",
+            "status_code": 200,
+            "status": "success",
             "data": {
                 "formatted_datetime": formatted_datetime,
                 "full_name": request.full_name,
@@ -122,20 +136,31 @@ async def upload_data(request: WorkshopRegistrationRequest):
                 "institution": request.institution,
                 "profession": request.profession,
                 "address": request.address,
-                "url_bukti_follow": request.url_bukti_follow
-            },
-            "row_inserted": worksheet.row_count
+                "url_bukti_follow": request.url_bukti_follow,
+                "row_inserted": worksheet.row_count
+            }
         }
 
         print(response_data)
 
+        # Return the response
         return response_data
 
     except Exception as e:
-        return {"message": str(e)}
+        # Prepare the response for errors
+        response_data = {
+            "status_code": 500,
+            "status": "failed",
+            "data": {
+                "message": f"Terjadi kesalahan: {str(e)}"
+            }
+        }
+
+        # Return the error response
+        return response_data
 
 @event_router.post("/conference")
-async def upload_data(request: NonWorkshopRegistrationRequest):
+async def upload_data_conference(request: NonWorkshopRegistrationRequest):
     try:
         credentials_file = "sa.json"
 
@@ -166,9 +191,9 @@ async def upload_data(request: NonWorkshopRegistrationRequest):
 
         append_data(worksheet, data_to_append)
 
-        # Persiapan respons
         response_data = {
-            "message": "success",
+            "status_code": 200,
+            "status": "success",
             "data": {
                 "formatted_datetime": formatted_datetime,
                 "full_name": request.full_name,
@@ -177,17 +202,28 @@ async def upload_data(request: NonWorkshopRegistrationRequest):
                 "institution": request.institution,
                 "profession": request.profession,
                 "address": request.address,
-                "url_bukti_pembayarabn": request.url_bukti_pembayaran
-            },
-            "row_inserted": worksheet.row_count
+                "url_bukti_pembayarabn": request.url_bukti_pembayaran,
+                "row_inserted": worksheet.row_count
+            }
         }
 
         print(response_data)
 
+        # Return the response
         return response_data
 
     except Exception as e:
-        return {"message": str(e)}
+        # Prepare the response for errors
+        response_data = {
+            "status_code": 500,
+            "status": "failed",
+            "data": {
+                "message": f"Terjadi kesalahan: {str(e)}"
+            }
+        }
+
+        # Return the error response
+        return response_data
 
 
 ## ADMIN ROUTER
@@ -324,12 +360,26 @@ async def url_media_partners():
         for doc in query:
             media_partners.append(doc.to_dict())
 
-        return media_partners
+        # Prepare the success response
+        response_data = {
+            "status_code": 200,
+            "status": "success",
+            "data": media_partners
+        }
+
+        return response_data
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Terjadi kesalahan: {str(e)}")
+        # Prepare the error response
+        response_data = {
+            "status_code": 500,
+            "status": "failed",
+            "message": f"Terjadi kesalahan: {str(e)}"
+        }
 
-# Define the GET /url-sponsor endpoint
+        raise HTTPException(status_code=500, detail=response_data)
+
+# Modify the url_sponsors endpoint
 @asset_router.get("/url-sponsor")
 async def url_sponsors():
     try:
@@ -341,7 +391,21 @@ async def url_sponsors():
         for doc in query:
             sponsors.append(doc.to_dict())
 
-        return sponsors
+        # Prepare the success response
+        response_data = {
+            "status_code": 200,
+            "status": "success",
+            "data": sponsors
+        }
+
+        return response_data
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Terjadi kesalahan: {str(e)}")
+        # Prepare the error response
+        response_data = {
+            "status_code": 500,
+            "status": "failed",
+            "message": f"Terjadi kesalahan: {str(e)}"
+        }
+
+        raise HTTPException(status_code=500, detail=response_data)
