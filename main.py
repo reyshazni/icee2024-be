@@ -1,12 +1,13 @@
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 import uvicorn
-from routes.events import event_router, admin_router
+from routes.events import event_router, admin_router, asset_router
 
 app = FastAPI()
 
 app.include_router(admin_router, prefix="/admin")
 app.include_router(event_router, prefix="/register")
+app.include_router(asset_router, prefix="/asset")
 
 @app.get("/")
 async def home():

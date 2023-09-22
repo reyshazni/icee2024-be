@@ -1,4 +1,6 @@
+from pathlib import Path
 from fastapi import FastAPI, HTTPException, UploadFile, Form
+import firebase_admin
 from firebase_admin import credentials, initialize_app, storage
 from google.cloud import firestore
 from datetime import datetime, timedelta, timezone
@@ -7,7 +9,6 @@ from utils import connect, open_worksheet, append_data
 from fastapi.routing import APIRouter
 from models.events import WorkshopRegistrationRequest, NonWorkshopRegistrationRequest, FileTypeEnum
 from models.admin import CategoryEnum, ClassEnum
-from typing import Annotated
 from dotenv import load_dotenv, dotenv_values
 
 load_dotenv()
@@ -26,6 +27,7 @@ app = FastAPI()
 # Create the event_router
 event_router = APIRouter(tags=["Registration"])
 admin_router = APIRouter(tags=["Admin"])
+asset_router = APIRouter(tags=["Assets"])
 
 CREDENTIAL_PATH = "sa.json"
 BUCKET_NAME = "icee24"
@@ -188,8 +190,6 @@ async def upload_data(request: NonWorkshopRegistrationRequest):
         return {"message": str(e)}
 
 
-
-
 ## ADMIN ROUTER
 content_types = {
     'jpeg': 'image/jpeg',
@@ -203,9 +203,9 @@ async def upload_sponsor(access_code: str, kelas: ClassEnum, category: CategoryE
     max_file_size = 20 * 1024 * 1024
 
     try:
+        # Validate the access_code
         if access_code not in allowed_access_codes:
             raise HTTPException(status_code=400, detail="Access code is not valid")
-
         file_format = file.filename.split('.')[-1].lower()
         if file_format not in allowed_formats:
             raise HTTPException(status_code=400, detail="Format file tidak didukung")
@@ -217,22 +217,32 @@ async def upload_sponsor(access_code: str, kelas: ClassEnum, category: CategoryE
         file.file.seek(0)
 
         current_time = datetime.now().strftime("%Y%m%d%H%M%S")
-        
+
         # Modify the filename by appending the file format and replacing spaces with underscores
         new_filename = f"{nama_sponsor.replace(' ', '_')}.{file_format}"
 
         destination_path = f"{kelas}/{category}/{new_filename}"
 
         blob = firebase_storage.blob(destination_path)
-        
-        # Set the content type based on the file format using the dictionary
+
+        # Set the content type based on the file format using a dictionary (content_types)
+
         if file_format in content_types:
             blob.content_type = content_types[file_format]
-        
+
         blob.upload_from_file(file.file)
 
         file_url = f"https://storage.googleapis.com/{firebase_storage.name}/{destination_path}"
-        print("fileurl")
+
+        # Create a new document with an auto-generated ID in the "partners" collection
+        data = {
+            "name": nama_sponsor,
+            "category": kelas,
+            "size": category,
+            "file_url": file_url,
+        }
+
+        db.collection("partners").add(data)
 
         return {"message": "success", "file_url": file_url}
 
@@ -240,3 +250,98 @@ async def upload_sponsor(access_code: str, kelas: ClassEnum, category: CategoryE
         return {"message": http_exception.detail}
     except Exception as e:
         return {"message": f"Terjadi kesalahan: {str(e)}"}
+
+@admin_router.get("/all-partner-name")
+async def get_all_partner_names():
+    try:
+        # Query Firestore to get all documents in the "partners" collection
+        query = db.collection("partners").stream()
+
+        partner_names = []
+
+        for doc in query:
+            data = doc.to_dict()
+            partner_name = data.get("name")
+            if partner_name:
+                partner_names.append(partner_name)
+
+        return partner_names
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Terjadi kesalahan: {str(e)}")
+
+@admin_router.get("/partner-detail/")
+async def get_partner_detail(partner_name: str):
+    try:
+        # Query Firestore to find a document with the specified partner name
+        query = db.collection("partners").where("name", "==", partner_name).stream()
+
+        partner_detail = None
+
+        for doc in query:
+            partner_detail = doc.to_dict()
+            break  # Assuming there is only one partner with the given name
+
+        if partner_detail:
+            return partner_detail
+        else:
+            raise HTTPException(status_code=404, detail="Partner not found")
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Terjadi kesalahan: {str(e)}")
+
+@admin_router.delete("/delete-partner/")
+async def delete_partner(access_code:str, partner_name: str):
+    try:
+        # Validate the access_code
+        if access_code not in allowed_access_codes:
+            raise HTTPException(status_code=400, detail="Access code is not valid")
+        # Query Firestore to find a document with the specified partner name
+        query = db.collection("partners").where("name", "==", partner_name).stream()
+
+        for doc in query:
+            # Delete the document with the matching partner name
+            doc.reference.delete()
+            return {"message": f"Partner '{partner_name}' deleted successfully"}
+
+        # If no matching document is found, raise a 404 Not Found exception
+        raise HTTPException(status_code=404, detail="Partner not found")
+
+    except HTTPException as http_exception:
+        raise http_exception
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Terjadi kesalahan: {str(e)}")
+
+## ASSETS ROUTER
+@asset_router.get("/url-media")
+async def url_media_partners():
+    try:
+        # Query Firestore to get all documents in "partners" collection with category "media_partner"
+        query = db.collection("partners").where("category", "==", "media_partner").stream()
+
+        media_partners = []
+
+        for doc in query:
+            media_partners.append(doc.to_dict())
+
+        return media_partners
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Terjadi kesalahan: {str(e)}")
+
+# Define the GET /url-sponsor endpoint
+@asset_router.get("/url-sponsor")
+async def url_sponsors():
+    try:
+        # Query Firestore to get all documents in "partners" collection with category "sponsor"
+        query = db.collection("partners").where("category", "==", "sponsor").stream()
+
+        sponsors = []
+
+        for doc in query:
+            sponsors.append(doc.to_dict())
+
+        return sponsors
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Terjadi kesalahan: {str(e)}")
