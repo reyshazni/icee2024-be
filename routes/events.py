@@ -233,7 +233,7 @@ content_types = {
     'png': 'image/png',
 }
 
-@admin_router.post("/upload-partners")
+@admin_router.post("/upload-partner")
 async def upload_sponsor(access_code: str, kelas: ClassEnum, category: CategoryEnum, file: UploadFile, nama_sponsor: str):
     allowed_formats = {'jpeg', 'jpg', 'png'}
     max_file_size = 20 * 1024 * 1024
