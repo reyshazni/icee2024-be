@@ -1,4 +1,7 @@
+from pathlib import Path
 from fastapi import FastAPI, HTTPException, UploadFile, Form
+from fastapi.responses import JSONResponse
+import firebase_admin
 from firebase_admin import credentials, initialize_app, storage
 from google.cloud import firestore
 from datetime import datetime, timedelta, timezone
@@ -7,7 +10,6 @@ from utils import connect, open_worksheet, append_data
 from fastapi.routing import APIRouter
 from models.events import WorkshopRegistrationRequest, NonWorkshopRegistrationRequest, FileTypeEnum
 from models.admin import CategoryEnum, ClassEnum
-from typing import Annotated
 from dotenv import load_dotenv, dotenv_values
 
 load_dotenv()
@@ -24,8 +26,9 @@ allowed_access_codes = [access_code1, access_code2, access_code3]
 app = FastAPI()
 
 # Create the event_router
-event_router = APIRouter(tags=["Event"])
+event_router = APIRouter(tags=["Registration"])
 admin_router = APIRouter(tags=["Admin"])
+asset_router = APIRouter(tags=["Assets"])
 
 CREDENTIAL_PATH = "sa.json"
 BUCKET_NAME = "icee24"
@@ -37,7 +40,7 @@ os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = CREDENTIAL_PATH
 firebase_storage = storage.bucket(name=BUCKET_NAME)
 db = firestore.Client()
 
-@event_router.post("/uploadFile")
+@event_router.post("/upload-file")
 async def upload_file(file: UploadFile, type: FileTypeEnum):
     allowed_formats = {'pdf': 'application/pdf', 'jpeg': 'image/jpeg', 'jpg': 'image/jpeg', 'png': 'image/png'}
     max_file_size = 5 * 1024 * 1024  # 5 MB
@@ -70,22 +73,34 @@ async def upload_file(file: UploadFile, type: FileTypeEnum):
         file_url = f"https://storage.googleapis.com/{firebase_storage.name}/{destination_path}"
         print("fileurl")
 
-        return {"message": "success", "file_url": file_url}
+        # Create a response dictionary in the specified format
+        response_data = {"status_code": 200, "status": "success", "data": {"file_url": file_url}}
+        
+        # Return a JSONResponse with the custom response data and status code
+        return JSONResponse(content=response_data, status_code=200)
 
     except HTTPException as http_exception:
-        return {"message": http_exception.detail}
+        # Create a response dictionary for error cases
+        response_data = {"status_code": http_exception.status_code, "status": "failed", "message": http_exception.detail}
+        
+        # Return a JSONResponse with the custom error response data and status code
+        return JSONResponse(content=response_data, status_code=http_exception.status_code)
     except Exception as e:
-        return {"message": f"Terjadi kesalahan: {str(e)}"}
+        # Create a response dictionary for general exceptions
+        response_data = {"status_code": 500, "status": "failed", "message": f"Terjadi kesalahan: {str(e)}"}
+        
+        # Return a JSONResponse with the custom error response data and status code
+        return JSONResponse(content=response_data, status_code=500)
 
-@event_router.post("/registerWorkshop")
-async def upload_data(request: WorkshopRegistrationRequest):
+@event_router.post("/workshop")
+async def upload_data_workshop(request: WorkshopRegistrationRequest):
     try:
         credentials_file = "sa.json"
 
         print("connecting spreadsheet")
         spreadsheet = connect(credentials_file)
 
-        worksheet = open_worksheet(spreadsheet, spreadsheet_name, request.event_name)
+        worksheet = open_worksheet(spreadsheet, spreadsheet_name, "workshop")
 
         # Definisikan zona waktu Asia/Jakarta
         jakarta_timezone = timezone(timedelta(hours=7))  # UTC+7 untuk Asia/Jakarta
@@ -109,9 +124,10 @@ async def upload_data(request: WorkshopRegistrationRequest):
 
         append_data(worksheet, data_to_append)
 
-        # Persiapan respons
+        # Prepare the response data
         response_data = {
-            "message": "success",
+            "status_code": 200,
+            "status": "success",
             "data": {
                 "formatted_datetime": formatted_datetime,
                 "full_name": request.full_name,
@@ -120,27 +136,38 @@ async def upload_data(request: WorkshopRegistrationRequest):
                 "institution": request.institution,
                 "profession": request.profession,
                 "address": request.address,
-                "url_bukti_follow": request.url_bukti_follow
-            },
-            "row_inserted": worksheet.row_count
+                "url_bukti_follow": request.url_bukti_follow,
+                "row_inserted": worksheet.row_count
+            }
         }
 
         print(response_data)
 
+        # Return the response
         return response_data
 
     except Exception as e:
-        return {"message": str(e)}
+        # Prepare the response for errors
+        response_data = {
+            "status_code": 500,
+            "status": "failed",
+            "data": {
+                "message": f"Terjadi kesalahan: {str(e)}"
+            }
+        }
 
-@event_router.post("/registerNonWorkshop")
-async def upload_data(request: NonWorkshopRegistrationRequest):
+        # Return the error response
+        return response_data
+
+@event_router.post("/conference")
+async def upload_data_conference(request: NonWorkshopRegistrationRequest):
     try:
         credentials_file = "sa.json"
 
         print("connecting spreadsheet")
         spreadsheet = connect(credentials_file)
 
-        worksheet = open_worksheet(spreadsheet, spreadsheet_name, request.event_name)
+        worksheet = open_worksheet(spreadsheet, spreadsheet_name, "workshop")
 
         # Definisikan zona waktu Asia/Jakarta
         jakarta_timezone = timezone(timedelta(hours=7))  # UTC+7 untuk Asia/Jakarta
@@ -164,9 +191,9 @@ async def upload_data(request: NonWorkshopRegistrationRequest):
 
         append_data(worksheet, data_to_append)
 
-        # Persiapan respons
         response_data = {
-            "message": "success",
+            "status_code": 200,
+            "status": "success",
             "data": {
                 "formatted_datetime": formatted_datetime,
                 "full_name": request.full_name,
@@ -175,35 +202,46 @@ async def upload_data(request: NonWorkshopRegistrationRequest):
                 "institution": request.institution,
                 "profession": request.profession,
                 "address": request.address,
-                "url_bukti_pembayarabn": request.url_bukti_pembayaran
-            },
-            "row_inserted": worksheet.row_count
+                "url_bukti_pembayarabn": request.url_bukti_pembayaran,
+                "row_inserted": worksheet.row_count
+            }
         }
 
         print(response_data)
 
+        # Return the response
         return response_data
 
     except Exception as e:
-        return {"message": str(e)}
+        # Prepare the response for errors
+        response_data = {
+            "status_code": 500,
+            "status": "failed",
+            "data": {
+                "message": f"Terjadi kesalahan: {str(e)}"
+            }
+        }
+
+        # Return the error response
+        return response_data
+
 
 ## ADMIN ROUTER
-
 content_types = {
     'jpeg': 'image/jpeg',
     'jpg': 'image/jpeg',
     'png': 'image/png',
 }
 
-@admin_router.post("/uploadSupporter")
+@admin_router.post("/upload-partner")
 async def upload_sponsor(access_code: str, kelas: ClassEnum, category: CategoryEnum, file: UploadFile, nama_sponsor: str):
     allowed_formats = {'jpeg', 'jpg', 'png'}
     max_file_size = 20 * 1024 * 1024
 
     try:
+        # Validate the access_code
         if access_code not in allowed_access_codes:
             raise HTTPException(status_code=400, detail="Access code is not valid")
-
         file_format = file.filename.split('.')[-1].lower()
         if file_format not in allowed_formats:
             raise HTTPException(status_code=400, detail="Format file tidak didukung")
@@ -215,22 +253,32 @@ async def upload_sponsor(access_code: str, kelas: ClassEnum, category: CategoryE
         file.file.seek(0)
 
         current_time = datetime.now().strftime("%Y%m%d%H%M%S")
-        
+
         # Modify the filename by appending the file format and replacing spaces with underscores
         new_filename = f"{nama_sponsor.replace(' ', '_')}.{file_format}"
 
         destination_path = f"{kelas}/{category}/{new_filename}"
 
         blob = firebase_storage.blob(destination_path)
-        
-        # Set the content type based on the file format using the dictionary
+
+        # Set the content type based on the file format using a dictionary (content_types)
+
         if file_format in content_types:
             blob.content_type = content_types[file_format]
-        
+
         blob.upload_from_file(file.file)
 
         file_url = f"https://storage.googleapis.com/{firebase_storage.name}/{destination_path}"
-        print("fileurl")
+
+        # Create a new document with an auto-generated ID in the "partners" collection
+        data = {
+            "name": nama_sponsor,
+            "category": kelas,
+            "size": category,
+            "file_url": file_url,
+        }
+
+        db.collection("partners").add(data)
 
         return {"message": "success", "file_url": file_url}
 
@@ -238,3 +286,126 @@ async def upload_sponsor(access_code: str, kelas: ClassEnum, category: CategoryE
         return {"message": http_exception.detail}
     except Exception as e:
         return {"message": f"Terjadi kesalahan: {str(e)}"}
+
+@admin_router.get("/all-partner-name")
+async def get_all_partner_names():
+    try:
+        # Query Firestore to get all documents in the "partners" collection
+        query = db.collection("partners").stream()
+
+        partner_names = []
+
+        for doc in query:
+            data = doc.to_dict()
+            partner_name = data.get("name")
+            if partner_name:
+                partner_names.append(partner_name)
+
+        return partner_names
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Terjadi kesalahan: {str(e)}")
+
+@admin_router.get("/partner-detail/")
+async def get_partner_detail(partner_name: str):
+    try:
+        # Query Firestore to find a document with the specified partner name
+        query = db.collection("partners").where("name", "==", partner_name).stream()
+
+        partner_detail = None
+
+        for doc in query:
+            partner_detail = doc.to_dict()
+            break  # Assuming there is only one partner with the given name
+
+        if partner_detail:
+            return partner_detail
+        else:
+            raise HTTPException(status_code=404, detail="Partner not found")
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Terjadi kesalahan: {str(e)}")
+
+@admin_router.delete("/delete-partner/")
+async def delete_partner(access_code:str, partner_name: str):
+    try:
+        # Validate the access_code
+        if access_code not in allowed_access_codes:
+            raise HTTPException(status_code=400, detail="Access code is not valid")
+        # Query Firestore to find a document with the specified partner name
+        query = db.collection("partners").where("name", "==", partner_name).stream()
+
+        for doc in query:
+            # Delete the document with the matching partner name
+            doc.reference.delete()
+            return {"message": f"Partner '{partner_name}' deleted successfully"}
+
+        # If no matching document is found, raise a 404 Not Found exception
+        raise HTTPException(status_code=404, detail="Partner not found")
+
+    except HTTPException as http_exception:
+        raise http_exception
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Terjadi kesalahan: {str(e)}")
+
+## ASSETS ROUTER
+@asset_router.get("/url-media")
+async def url_media_partners():
+    try:
+        # Query Firestore to get all documents in "partners" collection with category "media_partner"
+        query = db.collection("partners").where("category", "==", "media_partner").stream()
+
+        media_partners = []
+
+        for doc in query:
+            media_partners.append(doc.to_dict())
+
+        # Prepare the success response
+        response_data = {
+            "status_code": 200,
+            "status": "success",
+            "data": media_partners
+        }
+
+        return response_data
+
+    except Exception as e:
+        # Prepare the error response
+        response_data = {
+            "status_code": 500,
+            "status": "failed",
+            "message": f"Terjadi kesalahan: {str(e)}"
+        }
+
+        raise HTTPException(status_code=500, detail=response_data)
+
+# Modify the url_sponsors endpoint
+@asset_router.get("/url-sponsor")
+async def url_sponsors():
+    try:
+        # Query Firestore to get all documents in "partners" collection with category "sponsor"
+        query = db.collection("partners").where("category", "==", "sponsor").stream()
+
+        sponsors = []
+
+        for doc in query:
+            sponsors.append(doc.to_dict())
+
+        # Prepare the success response
+        response_data = {
+            "status_code": 200,
+            "status": "success",
+            "data": sponsors
+        }
+
+        return response_data
+
+    except Exception as e:
+        # Prepare the error response
+        response_data = {
+            "status_code": 500,
+            "status": "failed",
+            "message": f"Terjadi kesalahan: {str(e)}"
+        }
+
+        raise HTTPException(status_code=500, detail=response_data)
