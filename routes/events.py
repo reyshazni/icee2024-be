@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 import os
 from utils import connect, open_worksheet, append_data
 from fastapi.routing import APIRouter
-from models.events import WorkshopRegistrationRequest, NonWorkshopRegistrationRequest, FileTypeEnum
+from models.events import SeminarRequest, FileTypeEnum, DataDiri
 from models.admin import CategoryEnum, ClassEnum
 from dotenv import load_dotenv, dotenv_values
 
@@ -92,139 +92,60 @@ async def upload_file(file: UploadFile, type: FileTypeEnum):
         # Return a JSONResponse with the custom error response data and status code
         return JSONResponse(content=response_data, status_code=500)
 
-@event_router.post("/workshop")
-async def upload_data_workshop(request: WorkshopRegistrationRequest):
+@event_router.post("/seminar")
+async def upload_data_seminar(request: SeminarRequest):
     try:
         credentials_file = "sa.json"
 
-        print("connecting spreadsheet")
+        print("connecting to spreadsheet")
         spreadsheet = connect(credentials_file)
 
-        worksheet = open_worksheet(spreadsheet, spreadsheet_name, "workshop")
+        worksheet = open_worksheet(spreadsheet, spreadsheet_name, "seminar")
 
-        # Definisikan zona waktu Asia/Jakarta
-        jakarta_timezone = timezone(timedelta(hours=7))  # UTC+7 untuk Asia/Jakarta
+        jakarta_timezone = timezone(timedelta(hours=7))  # UTC+7 for Jakarta
 
-        # Dapatkan waktu saat ini dalam zona waktu Asia/Jakarta
-        current_datetime_wib = datetime.now(jakarta_timezone)
-        formatted_datetime = current_datetime_wib.strftime("%m/%d/%Y %H:%M:%S")
+        for data_diri in request.data_diri:
+            current_datetime_wib = datetime.now(jakarta_timezone)
+            formatted_datetime = current_datetime_wib.strftime("%m/%d/%Y %H:%M:%S")
 
-        data_to_append = [
-            formatted_datetime,
-            request.full_name,
-            request.email,
-            request.phone_number,
-            request.institution,
-            request.profession,
-            request.address,
-            request.url_bukti_follow
-        ]
+            data_to_append = [
+                formatted_datetime,
+                data_diri.nama_lengkap,
+                data_diri.email,
+                data_diri.no_telp,
+                data_diri.institusi,
+                data_diri.pekerjaan,
+                data_diri.alamat,
+                request.url_bukti_pembayaran  # Assuming this is common for all participants
+            ]
 
-        print(data_to_append)
-
-        append_data(worksheet, data_to_append)
-
-        # Prepare the response data
-        response_data = {
-            "status_code": 200,
-            "status": "success",
-            "data": {
-                "formatted_datetime": formatted_datetime,
-                "full_name": request.full_name,
-                "email": request.email,
-                "phone_number": request.phone_number,
-                "institution": request.institution,
-                "profession": request.profession,
-                "address": request.address,
-                "url_bukti_follow": request.url_bukti_follow,
-                "row_inserted": worksheet.row_count
-            }
-        }
-
-        print(response_data)
-
-        # Return the response
-        return response_data
-
-    except Exception as e:
-        # Prepare the response for errors
-        response_data = {
-            "status_code": 500,
-            "status": "failed",
-            "data": {
-                "message": f"Terjadi kesalahan: {str(e)}"
-            }
-        }
-
-        # Return the error response
-        return response_data
-
-@event_router.post("/conference")
-async def upload_data_conference(request: NonWorkshopRegistrationRequest):
-    try:
-        credentials_file = "sa.json"
-
-        print("connecting spreadsheet")
-        spreadsheet = connect(credentials_file)
-
-        worksheet = open_worksheet(spreadsheet, spreadsheet_name, "workshop")
-
-        # Definisikan zona waktu Asia/Jakarta
-        jakarta_timezone = timezone(timedelta(hours=7))  # UTC+7 untuk Asia/Jakarta
-
-        # Dapatkan waktu saat ini dalam zona waktu Asia/Jakarta
-        current_datetime_wib = datetime.now(jakarta_timezone)
-        formatted_datetime = current_datetime_wib.strftime("%m/%d/%Y %H:%M:%S")
-
-        data_to_append = [
-            formatted_datetime,
-            request.full_name,
-            request.email,
-            request.phone_number,
-            request.institution,
-            request.profession,
-            request.address,
-            request.url_bukti_pembayaran
-        ]
-
-        print(data_to_append)
-
-        append_data(worksheet, data_to_append)
+            print(data_to_append)
+            append_data(worksheet, data_to_append)
 
         response_data = {
             "status_code": 200,
             "status": "success",
             "data": {
-                "formatted_datetime": formatted_datetime,
-                "full_name": request.full_name,
-                "email": request.email,
-                "phone_number": request.phone_number,
-                "institution": request.institution,
-                "profession": request.profession,
-                "address": request.address,
-                "url_bukti_pembayarabn": request.url_bukti_pembayaran,
+                "message": "Data successfully uploaded",
+                "number_of_participants": len(request.data_diri),
                 "row_inserted": worksheet.row_count
             }
         }
 
         print(response_data)
-
-        # Return the response
         return response_data
 
     except Exception as e:
-        # Prepare the response for errors
         response_data = {
             "status_code": 500,
             "status": "failed",
             "data": {
-                "message": f"Terjadi kesalahan: {str(e)}"
+                "message": f"Error occurred: {str(e)}"
             }
         }
 
-        # Return the error response
+        print(response_data)
         return response_data
-
 
 ## ADMIN ROUTER
 content_types = {
