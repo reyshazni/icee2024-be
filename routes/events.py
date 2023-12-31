@@ -156,14 +156,17 @@ async def upload_data_expo(request: ExpoRequest):
         current_datetime_wib = datetime.now(jakarta_timezone)
         formatted_datetime = current_datetime_wib.strftime("%m/%d/%Y %H:%M:%S")
 
-        sumber_info_exact = request.sumber_info_lainnya if request.sumber_info == SumberInfoEnum.lainnya else request.sumber_info
+        sumber_info = request.sumber_info
+        sumber_info_exact = request.sumber_info_lainnya if sumber_info == SumberInfoEnum.lainnya else sumber_info
+        sumber_info_formatted = sumber_info_exact.replace('_', ' ').capitalize()
+
         data_to_append = [
             formatted_datetime,
             request.nama_lengkap,
             request.institusi,
             request.jurusan,
             request.nim,
-            sumber_info_exact
+            sumber_info_formatted
         ]
 
         print(data_to_append)

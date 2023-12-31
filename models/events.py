@@ -92,7 +92,6 @@ class ExpoRequest(BaseModel):
     nim: str = Field(..., example="18220013")
     sumber_info: SumberInfoEnum = Field(..., example=SumberInfoEnum.website)
     sumber_info_lainnya: Optional[str] = Field(None, example="")
-    
     @validator('sumber_info_lainnya', pre=True, always=True)
     def validate_sumber_info_lainnya(cls, sumber_info_lainnya, values):
         sumber_info = values.get('sumber_info')
