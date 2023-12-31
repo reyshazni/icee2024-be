@@ -46,4 +46,4 @@ class DataDiri(BaseModel):
 
 class SeminarRequest(BaseModel):
     data_diri: List[DataDiri]
-    file_url: str
+    file_url: str = Field(..., example="https://storage.googleapis.com/icee24/")

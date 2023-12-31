@@ -68,7 +68,7 @@ async def upload_data_seminar(request: SeminarRequest):
             "status_code": 200,
             "status": "success",
             "data": {
-                "message": "Data successfully uploaded",
+                "message": "Data berhasil diupload",
                 "number_of_participants": len(request.data_diri),
                 "row_inserted": worksheet.row_count
             }
@@ -100,9 +100,25 @@ async def test_upload_file(
     try:
         # Call the upload_file function with the provided parameters
         file_url = await upload_file(file, type, event, owner)
+
+        response_data = {
+            "status_code": 200,
+            "status": "success",
+            "data": {
+                "message": "file berhasil diupload",
+                "file_url": file_url
+            }
+        }
         
         # Return a JSONResponse with the file URL
-        return {"status": "success", "status_code": 200, "file_url": file_url}
+        return response_data
     except Exception as e:
         # Handle any exceptions and return an error response
-        return {"status": "failed", "status_code": 500, "message": str(e)}
+        response_data = {
+            "status_code": 500,
+            "status": "failed",
+            "data": {
+                "message": str(e)
+            }
+        }
+        return response_data

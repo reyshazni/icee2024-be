@@ -53,7 +53,7 @@ async def upload_sponsor(access_code: str, kelas: ClassEnum, category: CategoryE
     try:
         # Validate the access_code
         if access_code not in allowed_access_codes:
-            raise HTTPException(status_code=400, detail="Access code is not valid")
+            raise HTTPException(status_code=400, detail="Access code tidak valid")
         file_format = file.filename.split('.')[-1].lower()
         if file_format not in allowed_formats:
             raise HTTPException(status_code=400, detail="Format file tidak didukung")
@@ -185,7 +185,9 @@ async def url_media_partners():
         response_data = {
             "status_code": 500,
             "status": "failed",
-            "message": f"Terjadi kesalahan: {str(e)}"
+            "data:" : {
+                "message": f"Terjadi kesalahan: {str(e)}"
+            }
         }
 
         raise HTTPException(status_code=500, detail=response_data)
@@ -216,7 +218,9 @@ async def url_sponsors():
         response_data = {
             "status_code": 500,
             "status": "failed",
-            "message": f"Terjadi kesalahan: {str(e)}"
+            "data:" : {
+                "message": f"Terjadi kesalahan: {str(e)}"
+            }
         }
 
         raise HTTPException(status_code=500, detail=response_data)
