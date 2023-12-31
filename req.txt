@@ -17,3 +17,4 @@ firebase_admin
 google.cloud
 python-multipart
 typing
+fastapi-limiter
