@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 import os
 from utils import connect, open_worksheet, append_data
 from fastapi.routing import APIRouter
-from models.events import SeminarRequest, FileTypeEnum, DataDiri, EventCategoryEnum
+from models.events import SeminarRequest, FileTypeEnum, DataDiriSeminar, EventCategoryEnum
 from models.admin import CategoryEnum, ClassEnum
 from dotenv import load_dotenv, dotenv_values
 

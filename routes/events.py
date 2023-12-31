@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 import os
 from utils import connect, open_worksheet, append_data
 from fastapi.routing import APIRouter
-from models.events import EventCategoryEnum, SeminarRequest, FileTypeEnum, DataDiri
+from models.events import ConferenceRequest, EventCategoryEnum, ExpoRequest, SeminarRequest, FileTypeEnum, DataDiriSeminar, SumberInfoEnum
 from models.admin import CategoryEnum, ClassEnum
 from dotenv import load_dotenv, dotenv_values
 from service.firebase import get_firebase_storage
@@ -44,21 +44,21 @@ async def upload_data_seminar(request: SeminarRequest):
         worksheet = open_worksheet(spreadsheet, spreadsheet_name, "seminar")
         jakarta_timezone = timezone(timedelta(hours=7))
 
+        current_datetime_wib = datetime.now(jakarta_timezone)
+        formatted_datetime = current_datetime_wib.strftime("%m/%d/%Y %H:%M:%S")
         for data_diri in request.data_diri:
-            current_datetime_wib = datetime.now(jakarta_timezone)
-            formatted_datetime = current_datetime_wib.strftime("%m/%d/%Y %H:%M:%S")
 
             nim_value = data_diri.nim if data_diri.nim else "-"
             data_to_append = [
                 formatted_datetime,
                 data_diri.nama_lengkap,
                 data_diri.email,
-                data_diri.no_telp,
+                data_diri.no_telepon,
                 data_diri.institusi,
                 data_diri.pekerjaan,
                 data_diri.alamat,
                 nim_value,
-                request.file_url
+                request.url_bukti_pembayaran
             ]
 
             print(data_to_append)
@@ -70,6 +70,110 @@ async def upload_data_seminar(request: SeminarRequest):
             "data": {
                 "message": "Data berhasil diupload",
                 "number_of_participants": len(request.data_diri),
+                "row_inserted": worksheet.row_count
+            }
+        }
+
+        print(response_data)
+        return response_data
+
+    except Exception as e:
+        response_data = {
+            "status_code": 500,
+            "status": "failed",
+            "data": {
+                "message": f"Error occurred: {str(e)}"
+            }
+        }
+
+        print(response_data)
+        return response_data
+
+@event_router.post("/conference")
+async def upload_data_conference(request: ConferenceRequest):
+    try:
+        print("connecting to spreadsheet")
+        spreadsheet = connect(credentials_file)
+
+        worksheet = open_worksheet(spreadsheet, spreadsheet_name, "conference")
+        jakarta_timezone = timezone(timedelta(hours=7))
+
+        current_datetime_wib = datetime.now(jakarta_timezone)
+        formatted_datetime = current_datetime_wib.strftime("%m/%d/%Y %H:%M:%S")
+        for data_diri in request.data_diri:
+
+            data_to_append = [
+                formatted_datetime,
+                data_diri.nama_lengkap,
+                data_diri.email,
+                data_diri.no_telepon,
+                data_diri.institusi,
+                data_diri.jurusan,
+                data_diri.alamat,
+                data_diri.url_ktm,
+                request.essay,
+                request.link_submission,
+                request.kontak_darurat
+            ]
+
+            print(data_to_append)
+            append_data(worksheet, data_to_append)
+
+        response_data = {
+            "status_code": 200,
+            "status": "success",
+            "data": {
+                "message": "Data berhasil diupload",
+                "number_of_participants": len(request.data_diri),
+                "row_inserted": worksheet.row_count
+            }
+        }
+
+        print(response_data)
+        return response_data
+
+    except Exception as e:
+        response_data = {
+            "status_code": 500,
+            "status": "failed",
+            "data": {
+                "message": f"Error occurred: {str(e)}"
+            }
+        }
+
+        print(response_data)
+        return response_data
+
+@event_router.post("/expo")
+async def upload_data_expo(request: ExpoRequest):
+    try:
+        print("connecting to spreadsheet")
+        spreadsheet = connect(credentials_file)
+
+        worksheet = open_worksheet(spreadsheet, spreadsheet_name, "expo")
+        jakarta_timezone = timezone(timedelta(hours=7))
+
+        current_datetime_wib = datetime.now(jakarta_timezone)
+        formatted_datetime = current_datetime_wib.strftime("%m/%d/%Y %H:%M:%S")
+
+        sumber_info_exact = request.sumber_info_lainnya if request.sumber_info == SumberInfoEnum.lainnya else request.sumber_info
+        data_to_append = [
+            formatted_datetime,
+            request.nama_lengkap,
+            request.institusi,
+            request.jurusan,
+            request.nim,
+            sumber_info_exact
+        ]
+
+        print(data_to_append)
+        append_data(worksheet, data_to_append)
+
+        response_data = {
+            "status_code": 200,
+            "status": "success",
+            "data": {
+                "message": "Data berhasil diupload",
                 "row_inserted": worksheet.row_count
             }
         }
