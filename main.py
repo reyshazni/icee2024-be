@@ -1,9 +1,11 @@
 from fastapi import FastAPI
-from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from dotenv import load_dotenv, dotenv_values
-from routes.events import event_router, admin_router, asset_router
+from routes.events import event_router
+from routes.admin import admin_router, asset_router
+from service.firebase import get_firebase_app
+from fastapi_limiter import FastAPILimiter
 
 app = FastAPI()
 
@@ -25,12 +27,10 @@ app.include_router(admin_router, prefix="/admin")
 app.include_router(event_router, prefix="/register")
 app.include_router(asset_router, prefix="/asset")
 
-desc = "ICEE 2024 "+environment_name+" Server."
-
 @app.get("/")
 async def home():
+    desc = "ICEE 2024 " + environment_name + " Server."
     return {"message": desc}
 
 if __name__ == '__main__':
-    uvicorn.run('main:app', host='0.0.0.0', port=8000,
-                log_level="info")
+    uvicorn.run('main:app', host='0.0.0.0', port=8000, log_level="info")

@@ -12,6 +12,9 @@ class FileTypeEnum(str, Enum):
     bukti_follow = "bukti_follow"
     ktm = "ktm"
 
+class EventCategoryEnum(str, Enum):
+    seminar = "seminar"
+
 class JenisPesertaEnum(str, Enum):
     umum = "umum"
     tpb = "tpb"
@@ -43,4 +46,4 @@ class DataDiri(BaseModel):
 
 class SeminarRequest(BaseModel):
     data_diri: List[DataDiri]
-    url_bukti_pembayaran: str = Field(..., example="https://storage.googleapis.com/bucket/file.jpg")
+    file_url: str

@@ -1,5 +1,5 @@
 from pathlib import Path
-from fastapi import FastAPI, HTTPException, UploadFile, Form
+from fastapi import FastAPI, HTTPException, UploadFile, Form, Depends, File
 from fastapi.responses import JSONResponse
 import firebase_admin
 from firebase_admin import credentials, initialize_app, storage
@@ -8,19 +8,17 @@ from datetime import datetime, timedelta, timezone
 import os
 from utils import connect, open_worksheet, append_data
 from fastapi.routing import APIRouter
-from models.events import SeminarRequest, FileTypeEnum, DataDiri
+from models.events import EventCategoryEnum, SeminarRequest, FileTypeEnum, DataDiri
 from models.admin import CategoryEnum, ClassEnum
 from dotenv import load_dotenv, dotenv_values
+from service.firebase import get_firebase_storage
+from service.storage import upload_file
 
 load_dotenv()
 config = dotenv_values(".env")
 spreadsheet_name = config["SPREADSHEET_NAME"]
-access_code1 = config["ACCESS_CODE1"]
-access_code2 = config["ACCESS_CODE2"]
-access_code3 = config["ACCESS_CODE3"]
-
-# Create a list of access codes
-allowed_access_codes = [access_code1, access_code2, access_code3]
+allowed_formats = {'jpeg', 'jpg', 'png'}
+credentials_file = "sa.json"
 
 # Create the FastAPI app
 app = FastAPI()
@@ -33,81 +31,24 @@ asset_router = APIRouter(tags=["Assets"])
 CREDENTIAL_PATH = "sa.json"
 BUCKET_NAME = "icee24"
 
-cred = credentials.Certificate(CREDENTIAL_PATH)
-initialize_app(cred)
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = CREDENTIAL_PATH
 
-firebase_storage = storage.bucket(name=BUCKET_NAME)
 db = firestore.Client()
-
-@event_router.post("/upload-file")
-async def upload_file(file: UploadFile, type: FileTypeEnum):
-    allowed_formats = {'pdf': 'application/pdf', 'jpeg': 'image/jpeg', 'jpg': 'image/jpeg', 'png': 'image/png'}
-    max_file_size = 5 * 1024 * 1024  # 5 MB
-
-    try:
-        file_format = file.filename.split('.')[-1].lower()
-        if file_format not in allowed_formats:
-            raise HTTPException(status_code=400, detail="Format file tidak didukung")
-
-        file_size = file.file.seek(0, 2)
-        if file_size > max_file_size:
-            raise HTTPException(status_code=400, detail="Ukuran file terlalu besar")
-
-        file.file.seek(0)
-
-        current_time = datetime.now().strftime("%Y%m%d%H%M%S")
-        new_filename = f"{current_time}.{file.filename}"
-
-        # Get the content type based on the file format
-        content_type = allowed_formats[file_format]
-
-        # Construct the destination path with the folder (type) included
-        destination_path = f"registration/{type}/{new_filename}"
-
-        blob = firebase_storage.blob(destination_path)  # Use the destination path
-
-        # Set the content type when uploading the file
-        blob.upload_from_file(file.file, content_type=content_type)
-
-        file_url = f"https://storage.googleapis.com/{firebase_storage.name}/{destination_path}"
-        print("fileurl")
-
-        # Create a response dictionary in the specified format
-        response_data = {"status_code": 200, "status": "success", "data": {"file_url": file_url}}
-        
-        # Return a JSONResponse with the custom response data and status code
-        return JSONResponse(content=response_data, status_code=200)
-
-    except HTTPException as http_exception:
-        # Create a response dictionary for error cases
-        response_data = {"status_code": http_exception.status_code, "status": "failed", "message": http_exception.detail}
-        
-        # Return a JSONResponse with the custom error response data and status code
-        return JSONResponse(content=response_data, status_code=http_exception.status_code)
-    except Exception as e:
-        # Create a response dictionary for general exceptions
-        response_data = {"status_code": 500, "status": "failed", "message": f"Terjadi kesalahan: {str(e)}"}
-        
-        # Return a JSONResponse with the custom error response data and status code
-        return JSONResponse(content=response_data, status_code=500)
 
 @event_router.post("/seminar")
 async def upload_data_seminar(request: SeminarRequest):
     try:
-        credentials_file = "sa.json"
-
         print("connecting to spreadsheet")
         spreadsheet = connect(credentials_file)
 
         worksheet = open_worksheet(spreadsheet, spreadsheet_name, "seminar")
-
-        jakarta_timezone = timezone(timedelta(hours=7))  # UTC+7 for Jakarta
+        jakarta_timezone = timezone(timedelta(hours=7))
 
         for data_diri in request.data_diri:
             current_datetime_wib = datetime.now(jakarta_timezone)
             formatted_datetime = current_datetime_wib.strftime("%m/%d/%Y %H:%M:%S")
 
+            nim_value = data_diri.nim if data_diri.nim else "-"
             data_to_append = [
                 formatted_datetime,
                 data_diri.nama_lengkap,
@@ -116,7 +57,8 @@ async def upload_data_seminar(request: SeminarRequest):
                 data_diri.institusi,
                 data_diri.pekerjaan,
                 data_diri.alamat,
-                request.url_bukti_pembayaran  # Assuming this is common for all participants
+                nim_value,
+                request.file_url
             ]
 
             print(data_to_append)
@@ -147,186 +89,20 @@ async def upload_data_seminar(request: SeminarRequest):
         print(response_data)
         return response_data
 
-## ADMIN ROUTER
-content_types = {
-    'jpeg': 'image/jpeg',
-    'jpg': 'image/jpeg',
-    'png': 'image/png',
-}
-
-@admin_router.post("/upload-partner")
-async def upload_sponsor(access_code: str, kelas: ClassEnum, category: CategoryEnum, file: UploadFile, nama_sponsor: str):
-    allowed_formats = {'jpeg', 'jpg', 'png'}
-    max_file_size = 20 * 1024 * 1024
-
+# Define a route to test the upload_file function
+@event_router.post("/upload-registrant/")
+async def test_upload_file(
+    file: UploadFile = File(...),
+    type: FileTypeEnum = Form(...),
+    event: EventCategoryEnum = Form(...),
+    owner: str = Form(None),
+):
     try:
-        # Validate the access_code
-        if access_code not in allowed_access_codes:
-            raise HTTPException(status_code=400, detail="Access code is not valid")
-        file_format = file.filename.split('.')[-1].lower()
-        if file_format not in allowed_formats:
-            raise HTTPException(status_code=400, detail="Format file tidak didukung")
-
-        file_size = file.file.seek(0, 2)
-        if file_size > max_file_size:
-            raise HTTPException(status_code=400, detail="Ukuran file terlalu besar")
-
-        file.file.seek(0)
-
-        current_time = datetime.now().strftime("%Y%m%d%H%M%S")
-
-        # Modify the filename by appending the file format and replacing spaces with underscores
-        new_filename = f"{nama_sponsor.replace(' ', '_')}.{file_format}"
-
-        destination_path = f"{kelas}/{category}/{new_filename}"
-
-        blob = firebase_storage.blob(destination_path)
-
-        # Set the content type based on the file format using a dictionary (content_types)
-
-        if file_format in content_types:
-            blob.content_type = content_types[file_format]
-
-        blob.upload_from_file(file.file)
-
-        file_url = f"https://storage.googleapis.com/{firebase_storage.name}/{destination_path}"
-
-        # Create a new document with an auto-generated ID in the "partners" collection
-        data = {
-            "name": nama_sponsor,
-            "category": kelas,
-            "size": category,
-            "file_url": file_url,
-        }
-
-        db.collection("partners").add(data)
-
-        return {"message": "success", "file_url": file_url}
-
-    except HTTPException as http_exception:
-        return {"message": http_exception.detail}
+        # Call the upload_file function with the provided parameters
+        file_url = await upload_file(file, type, event, owner)
+        
+        # Return a JSONResponse with the file URL
+        return {"status": "success", "status_code": 200, "file_url": file_url}
     except Exception as e:
-        return {"message": f"Terjadi kesalahan: {str(e)}"}
-
-@admin_router.get("/all-partner-name")
-async def get_all_partner_names():
-    try:
-        # Query Firestore to get all documents in the "partners" collection
-        query = db.collection("partners").stream()
-
-        partner_names = []
-
-        for doc in query:
-            data = doc.to_dict()
-            partner_name = data.get("name")
-            if partner_name:
-                partner_names.append(partner_name)
-
-        return partner_names
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Terjadi kesalahan: {str(e)}")
-
-@admin_router.get("/partner-detail/")
-async def get_partner_detail(partner_name: str):
-    try:
-        # Query Firestore to find a document with the specified partner name
-        query = db.collection("partners").where("name", "==", partner_name).stream()
-
-        partner_detail = None
-
-        for doc in query:
-            partner_detail = doc.to_dict()
-            break  # Assuming there is only one partner with the given name
-
-        if partner_detail:
-            return partner_detail
-        else:
-            raise HTTPException(status_code=404, detail="Partner not found")
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Terjadi kesalahan: {str(e)}")
-
-@admin_router.delete("/delete-partner/")
-async def delete_partner(access_code:str, partner_name: str):
-    try:
-        # Validate the access_code
-        if access_code not in allowed_access_codes:
-            raise HTTPException(status_code=400, detail="Access code is not valid")
-        # Query Firestore to find a document with the specified partner name
-        query = db.collection("partners").where("name", "==", partner_name).stream()
-
-        for doc in query:
-            # Delete the document with the matching partner name
-            doc.reference.delete()
-            return {"message": f"Partner '{partner_name}' deleted successfully"}
-
-        # If no matching document is found, raise a 404 Not Found exception
-        raise HTTPException(status_code=404, detail="Partner not found")
-
-    except HTTPException as http_exception:
-        raise http_exception
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Terjadi kesalahan: {str(e)}")
-
-## ASSETS ROUTER
-@asset_router.get("/url-media")
-async def url_media_partners():
-    try:
-        # Query Firestore to get all documents in "partners" collection with category "media_partner"
-        query = db.collection("partners").where("category", "==", "media_partner").stream()
-
-        media_partners = []
-
-        for doc in query:
-            media_partners.append(doc.to_dict())
-
-        # Prepare the success response
-        response_data = {
-            "status_code": 200,
-            "status": "success",
-            "data": media_partners
-        }
-
-        return response_data
-
-    except Exception as e:
-        # Prepare the error response
-        response_data = {
-            "status_code": 500,
-            "status": "failed",
-            "message": f"Terjadi kesalahan: {str(e)}"
-        }
-
-        raise HTTPException(status_code=500, detail=response_data)
-
-# Modify the url_sponsors endpoint
-@asset_router.get("/url-sponsor")
-async def url_sponsors():
-    try:
-        # Query Firestore to get all documents in "partners" collection with category "sponsor"
-        query = db.collection("partners").where("category", "==", "sponsor").stream()
-
-        sponsors = []
-
-        for doc in query:
-            sponsors.append(doc.to_dict())
-
-        # Prepare the success response
-        response_data = {
-            "status_code": 200,
-            "status": "success",
-            "data": sponsors
-        }
-
-        return response_data
-
-    except Exception as e:
-        # Prepare the error response
-        response_data = {
-            "status_code": 500,
-            "status": "failed",
-            "message": f"Terjadi kesalahan: {str(e)}"
-        }
-
-        raise HTTPException(status_code=500, detail=response_data)
+        # Handle any exceptions and return an error response
+        return {"status": "failed", "status_code": 500, "message": str(e)}
