@@ -88,7 +88,7 @@ class ConferenceRequest(BaseModel):
 class ExpoRequest(BaseModel):
     nama_lengkap: str = Field(..., example="Reinhart Jericho")
     institusi: str = Field(..., example="Institut Teknologi Bandung")
-    jurusan: str = Field(..., example="Teknik Sipil")
+    fakultas: str = Field(..., example="Teknik Sipil")
     nim: str = Field(..., example="18220013")
     sumber_info: SumberInfoEnum = Field(..., example=SumberInfoEnum.website)
     sumber_info_lainnya: Optional[str] = Field(None, example="")

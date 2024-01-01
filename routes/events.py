@@ -164,7 +164,7 @@ async def upload_data_expo(request: ExpoRequest):
             formatted_datetime,
             request.nama_lengkap,
             request.institusi,
-            request.jurusan,
+            request.fakultas,
             request.nim,
             sumber_info_formatted
         ]
