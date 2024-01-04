@@ -2,11 +2,6 @@ from typing import List, Optional
 from pydantic import BaseModel, EmailStr, Field, validator, root_validator
 from enum import Enum
 
-class NonWorkshopEnum(str, Enum):
-    conference = "conference"
-    expo = "expo"
-    seminar = "seminar"
-
 class FileTypeEnum(str, Enum):
     bukti_pembayaran = "bukti_pembayaran"
     bukti_follow = "bukti_follow"

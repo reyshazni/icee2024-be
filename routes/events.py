@@ -198,7 +198,7 @@ async def upload_data_expo(request: ExpoRequest):
 
 # Define a route to test the upload_file function
 @event_router.post("/upload-registrant/")
-async def test_upload_file(
+async def upload_registrant(
     file: UploadFile = File(...),
     type: FileTypeEnum = Form(...),
     event: EventCategoryEnum = Form(...),

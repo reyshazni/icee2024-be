@@ -11,6 +11,7 @@ from fastapi.routing import APIRouter
 from models.events import SeminarRequest, FileTypeEnum, DataDiriSeminar, EventCategoryEnum
 from models.admin import CategoryEnum, ClassEnum
 from dotenv import load_dotenv, dotenv_values
+from service.sanitizer import filename_url_sanitizer
 
 load_dotenv()
 credentials_file = "sa.json"
@@ -37,11 +38,13 @@ async def upload_file(file: UploadFile, type: FileTypeEnum, event: EventCategory
 
         file.file.seek(0)
 
+        sanitized_file_name = filename_url_sanitizer(file.filename)
+
         current_time = datetime.now().strftime("%Y%m%d%H%M%S")
         if owner:
-            new_filename = f"{owner}.{current_time}.{file.filename}"
+            new_filename = f"{owner}.{current_time}.{sanitized_file_name}"
         else:
-            new_filename = f"{current_time}.{file.filename}"
+            new_filename = f"{current_time}.{sanitized_file_name}"
 
 
         # Get the content type based on the file format
