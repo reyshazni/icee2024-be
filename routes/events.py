@@ -111,7 +111,7 @@ async def upload_data_conference(request: ConferenceRequest):
                 data_diri.jurusan,
                 data_diri.alamat,
                 data_diri.url_ktm,
-                request.essay,
+                request.url_essay,
                 request.link_submission,
                 request.kontak_darurat
             ]
