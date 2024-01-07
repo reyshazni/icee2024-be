@@ -24,8 +24,8 @@ os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = CREDENTIAL_PATH
 firebase_storage = storage.bucket(name=BUCKET_NAME)
 
 async def upload_file(file: UploadFile, type: FileTypeEnum, event: EventCategoryEnum, owner: str = None):
-    allowed_formats = {'pdf': 'application/pdf', 'jpeg': 'image/jpeg', 'jpg': 'image/jpeg', 'png': 'image/png', 'heic': 'image/heic'}
-    max_file_size = 20 * 1024 * 1024  # 20 MB
+    allowed_formats = {'pdf': 'application/pdf', 'jpeg': 'image/jpeg', 'jpg': 'image/jpeg', 'png': 'image/png', 'heic': 'image/heic', 'doc': 'application/msword', 'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}
+    max_file_size = 50 * 1024 * 1024  # 50 MB
 
     try:
         file_format = file.filename.split('.')[-1].lower()

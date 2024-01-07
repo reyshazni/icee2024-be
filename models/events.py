@@ -6,6 +6,7 @@ class FileTypeEnum(str, Enum):
     bukti_pembayaran = "bukti_pembayaran"
     bukti_follow = "bukti_follow"
     ktm = "ktm"
+    essay = "essay"
 
 class EventCategoryEnum(str, Enum):
     seminar = "seminar"
@@ -70,7 +71,7 @@ class SeminarRequest(BaseModel):
 
 class ConferenceRequest(BaseModel):
     data_diri: List[DataDiriConference]
-    essay: str = Field(..., example="Kami senang ikut ICEE2024")
+    url_essay: str = Field(..., example="Kami senang ikut ICEE2024")
     link_submission: str = Field(..., example="https://youtube.com/icee24/")
     kontak_darurat: str = Field(..., example="08123123123")
 
