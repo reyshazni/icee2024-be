@@ -75,3 +75,36 @@ async def upload_file(file: UploadFile, type: FileTypeEnum, event: EventCategory
         
         # Return a JSONResponse with the custom error response data and status code
         return JSONResponse(content=response_data, status_code=500)
+
+async def delete_file(url: str):
+    try:
+        bucket = storage.bucket('icee24')
+
+        file_path = remove_base_url_from_full_url(url)
+        blob = bucket.blob(file_path)
+        # Set the content type when uploading the file
+        blob.delete()
+        
+        # Return a JSONResponse with the custom response data and status code
+        return url
+
+    except HTTPException as http_exception:
+        # Create a response dictionary for error cases
+        response_data = {"status_code": http_exception.status_code, "status": "failed", "message": http_exception.detail}
+        
+        # Return a JSONResponse with the custom error response data and status code
+        return JSONResponse(content=response_data, status_code=http_exception.status_code)
+    except Exception as e:
+        # Create a response dictionary for general exceptions
+        response_data = {"status_code": 500, "status": "failed", "message": f"Terjadi kesalahan: {str(e)}"}
+        
+        # Return a JSONResponse with the custom error response data and status code
+        return JSONResponse(content=response_data, status_code=500)
+
+def remove_base_url_from_full_url(full_url):
+    base_url = "https://storage.googleapis.com/icee24/"
+    
+    if full_url.startswith(base_url):
+        return full_url[len(base_url):]
+    
+    return full_url
