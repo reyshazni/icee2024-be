@@ -37,6 +37,8 @@ BUCKET_NAME = "icee24"
 
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = CREDENTIAL_PATH
 
+firebase_storage = storage.bucket(name=BUCKET_NAME)
+
 db = firestore.Client()
 
 content_types = {
@@ -71,8 +73,7 @@ async def upload_sponsor(access_code: str, kelas: ClassEnum, category: CategoryE
 
         destination_path = f"{kelas}/{category}/{new_filename}"
 
-        blob = get_firebase_storage.blob(destination_path)
-
+        blob = firebase_storage.blob(destination_path)
 
         if file_format in content_types:
             blob.content_type = content_types[file_format]
