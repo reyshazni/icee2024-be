@@ -12,7 +12,7 @@ from models.events import ConferenceRequest, EventCategoryEnum, ExpoRequest, Sem
 from models.admin import CategoryEnum, ClassEnum
 from dotenv import load_dotenv, dotenv_values
 from service.firebase import get_firebase_storage
-from service.storage import upload_file
+from service.storage import upload_file, delete_file
 
 load_dotenv()
 config = dotenv_values(".env")
@@ -213,6 +213,36 @@ async def upload_registrant(
             "status": "success",
             "data": {
                 "message": "file berhasil diupload",
+                "file_url": file_url
+            }
+        }
+        
+        # Return a JSONResponse with the file URL
+        return response_data
+    except Exception as e:
+        # Handle any exceptions and return an error response
+        response_data = {
+            "status_code": 500,
+            "status": "failed",
+            "data": {
+                "message": str(e)
+            }
+        }
+        return response_data
+
+@event_router.delete("/delete-registrant/")
+async def upload_registrant(
+    url: str = Form(...),
+):
+    try:
+        # Call the upload_file function with the provided parameters
+        file_url = await delete_file(url)
+
+        response_data = {
+            "status_code": 200,
+            "status": "success",
+            "data": {
+                "message": "file berhasil dihapus",
                 "file_url": file_url
             }
         }
