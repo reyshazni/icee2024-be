@@ -17,11 +17,16 @@ from service.storage import upload_file, delete_file
 load_dotenv()
 config = dotenv_values(".env")
 spreadsheet_name = config["SPREADSHEET_NAME"]
+count_document_name = config["COUNT_DOCUMENT_NAME"]
 allowed_formats = {'jpeg', 'jpg', 'png'}
 credentials_file = "sa.json"
 
 # Create the FastAPI app
 app = FastAPI()
+
+CREDENTIAL_PATH = "sa.json"
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = CREDENTIAL_PATH
+db = firestore.Client()
 
 # Create the event_router
 event_router = APIRouter(tags=["Registration"])
@@ -73,6 +78,10 @@ async def upload_data_seminar(request: SeminarRequest):
                 "row_inserted": worksheet.row_count
             }
         }
+
+        # Increment data
+        dbref = db.collection(count_document_name).document("seminar")
+        dbref.update({"count": firestore.Increment(len(request.data_diri))})
 
         print(response_data)
         return response_data
@@ -129,6 +138,10 @@ async def upload_data_conference(request: ConferenceRequest):
             }
         }
 
+        # Increment data
+        dbref = db.collection(count_document_name).document("conference")
+        dbref.update({"count": firestore.Increment(len(request.data_diri))})
+
         print(response_data)
         return response_data
 
@@ -180,6 +193,10 @@ async def upload_data_expo(request: ExpoRequest):
                 "row_inserted": worksheet.row_count
             }
         }
+
+        # Increment data
+        dbref = db.collection(count_document_name).document("expo")
+        dbref.update({"count": firestore.Increment(1)})
 
         print(response_data)
         return response_data
@@ -243,11 +260,38 @@ async def upload_registrant(
             "status": "success",
             "data": {
                 "message": "file berhasil dihapus",
-                "file_url": file_url
+                "file_url": 0
             }
         }
         
         # Return a JSONResponse with the file URL
+        return response_data
+    except Exception as e:
+        # Handle any exceptions and return an error response
+        response_data = {
+            "status_code": 500,
+            "status": "failed",
+            "data": {
+                "message": str(e)
+            }
+        }
+        return response_data
+
+@event_router.get("/count-registrant/")
+async def count_registrant(
+    request: EventCategoryEnum,
+):
+    try:
+        doc_ref = db.collection(count_document_name).document(request).get().to_dict()
+        print(doc_ref)
+
+        response_data = {
+            "status_code": 200,
+            "status": "success",
+            "data": doc_ref
+        }
+
+        print(response_data)
         return response_data
     except Exception as e:
         # Handle any exceptions and return an error response
